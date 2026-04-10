@@ -1583,14 +1583,12 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     if (pieza.estado === EstadoPieza.CONGELADA) {
       // Current state is CONGELADA, we are registering DESCONGELADO
       if (pesoNum > pieza.pesoCongelado) {
-        alert(`Error: El peso DESCONGELADO (${pesoNum}kg) no puede ser mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg).`);
-        return;
+        alert(`Aviso: El peso DESCONGELADO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg). Se registrará de todas formas.`);
       }
     } else if (pieza.estado === EstadoPieza.DESCONGELADA) {
       // Current state is DESCONGELADA, we are registering PRODUCIDO
       if (pesoNum > pieza.pesoDescongelado) {
-        alert(`Error: El peso PRODUCIDO (${pesoNum}kg) no puede ser mayor al peso DESCONGELADO (${pieza.pesoDescongelado}kg).`);
-        return;
+        alert(`Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso DESCONGELADO (${pieza.pesoDescongelado}kg). Se registrará de todas formas.`);
       }
       if (pesoNum > pieza.pesoCongelado) {
         alert(`Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg). Se registrará de todas formas.`);
