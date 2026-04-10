@@ -1593,8 +1593,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
         return;
       }
       if (pesoNum > pieza.pesoCongelado) {
-        alert(`Error: El peso PRODUCIDO (${pesoNum}kg) no puede ser mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg).`);
-        return;
+        alert(`Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg). Se registrará de todas formas.`);
       }
 
       // Validation: Sum of portions vs Produced weight (6% margin)
