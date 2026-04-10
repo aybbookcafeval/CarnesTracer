@@ -1,7 +1,10 @@
 import { GoogleGenAI } from "@google/genai";
 
 // Accessing the API key. In Vite, we use define in vite.config.ts to inject process.env.GEMINI_API_KEY
-const apiKey = process.env.GEMINI_API_KEY;
+// We also check import.meta.env as a fallback
+const apiKey = process.env.GEMINI_API_KEY || 
+               (import.meta as any).env.VITE_GEMINI_API_KEY || 
+               (import.meta as any).env.GEMINI_API_KEY;
 
 export interface ValidationResult {
   isValid: boolean;
@@ -11,13 +14,13 @@ export interface ValidationResult {
 }
 
 export async function validateWeightWithAI(imageBase64: string, expectedWeight: number): Promise<ValidationResult> {
-  if (!apiKey || apiKey === "undefined" || apiKey === "") {
+  if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
     console.warn("GEMINI_API_KEY not found. AI validation is disabled.");
     return { 
       isValid: false, 
       detectedWeight: null, 
       confidence: 0, 
-      reason: "ERROR: No se ha configurado la clave de API de Gemini. La validación de seguridad está desactivada y no se permite el registro sin ella." 
+      reason: "ERROR: No se ha detectado la clave de API de Gemini. Por favor, asegúrese de configurarla en los ajustes del proyecto (Settings) como GEMINI_API_KEY o VITE_GEMINI_API_KEY." 
     };
   }
 
