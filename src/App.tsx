@@ -298,14 +298,26 @@ export default function App() {
     // Merma Total: (Congelado - Producido) / Congelado
     let mermaTotal = 0;
     if (pesoCongelado > 0 && pesoProducido > 0) {
-      mermaTotal = ((pesoCongelado - pesoProducido) / pesoCongelado) * 100;
+      const diff = pesoCongelado - pesoProducido;
+      // Allow 5% tolerance for packaging weight increase
+      if (diff < 0 && Math.abs(diff) <= pesoCongelado * 0.05) {
+        mermaTotal = 0;
+      } else {
+        mermaTotal = (diff / pesoCongelado) * 100;
+      }
     }
 
     // Legacy/General Merma (Current snapshot)
     let merma = 0;
     if (pesoCongelado > 0) {
       const pesoActual = pesoProducido > 0 ? pesoProducido : (pesoDescongelado > 0 ? pesoDescongelado : pesoCongelado);
-      merma = ((pesoCongelado - pesoActual) / pesoCongelado) * 100;
+      const diff = pesoCongelado - pesoActual;
+      // Allow 5% tolerance for packaging weight increase
+      if (diff < 0 && Math.abs(diff) <= pesoCongelado * 0.05) {
+        merma = 0;
+      } else {
+        merma = (diff / pesoCongelado) * 100;
+      }
     }
       
     const rendimiento = pesoDescongelado > 0 && pesoProducido > 0 
