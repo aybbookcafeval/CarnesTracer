@@ -29,6 +29,7 @@ export interface Pieza {
   pesoCongelado: number;
   pesoDescongelado: number;
   pesoProducido: number;
+  fotoMerma?: string;
   mermaDescongelado: number; // %
   mermaTotal: number; // %
   merma: number; // % (Legacy/General)
@@ -63,6 +64,7 @@ export interface RegistroPeso {
   tipoEvento: TipoEvento;
   peso: number;
   foto: string; // Base64 or URL
+  fotoMerma?: string;
   usuario: string;
   validadoIA: boolean;
   iaDetectedWeight?: number | null;

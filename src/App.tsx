@@ -341,7 +341,7 @@ export default function App() {
     }
   };
 
-  const registerWeight = async (pieceId: string, peso: number, foto: string, porciones?: Porcion[]) => {
+  const registerWeight = async (pieceId: string, peso: number, foto: string, porciones?: Porcion[], fotoMerma?: string) => {
     const piece = piezas.find(p => p.id === pieceId);
     if (!piece) return;
 
@@ -375,9 +375,15 @@ export default function App() {
     const metrics = calculateMetrics(piece, peso, eventType);
     
     try {
-      // 1. Upload photo to Supabase Storage
+      // 1. Upload photos to Supabase Storage
       const fileName = `${piece.id}-${eventType}-${Date.now()}`;
       const publicUrl = await supabaseService.uploadImage(foto, fileName);
+      
+      let publicUrlMerma = undefined;
+      if (fotoMerma) {
+        const fileNameMerma = `${piece.id}-MERMA-${Date.now()}`;
+        publicUrlMerma = await supabaseService.uploadImage(fotoMerma, fileNameMerma);
+      }
 
       const newRegistro: RegistroPeso = {
         id: `R-${Date.now()}`,
@@ -385,6 +391,7 @@ export default function App() {
         tipoEvento: eventType,
         peso,
         foto: publicUrl, // Use the public URL from Supabase Storage
+        fotoMerma: publicUrlMerma,
         usuario: user?.nombre || "Usuario",
         validadoIA: isValid,
         iaDetectedWeight,
@@ -396,6 +403,7 @@ export default function App() {
         ...piece, 
         ...metrics, 
         estado: nextEstado,
+        fotoMerma: publicUrlMerma || piece.fotoMerma,
         porciones: porciones || piece.porciones 
       };
       await Promise.all([
@@ -1311,12 +1319,18 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
           <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Merma Descong.</p>
           <p className={cn("text-sm font-bold", pieza.mermaDescongelado > mDescongMax ? "text-brand" : "text-slate-900")}>
             {pieza.mermaDescongelado > 0 ? `${pieza.mermaDescongelado.toFixed(1)}%` : "--"}
+            {pieza.pesoCongelado > 0 && pieza.pesoDescongelado > 0 && (
+              <span className="block text-[9px] text-slate-400">({(pieza.pesoCongelado - pieza.pesoDescongelado).toFixed(2)} kg)</span>
+            )}
           </p>
         </div>
         <div className="bg-slate-50 p-3 rounded-xl text-center">
           <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">Merma Total</p>
           <p className={cn("text-sm font-bold", pieza.mermaTotal > mTotalMax ? "text-brand" : "text-slate-900")}>
             {pieza.mermaTotal > 0 ? `${pieza.mermaTotal.toFixed(1)}%` : "--"}
+            {pieza.pesoCongelado > 0 && pieza.pesoProducido > 0 && (
+              <span className="block text-[9px] text-slate-400">({(pieza.pesoCongelado - pieza.pesoProducido).toFixed(2)} kg)</span>
+            )}
           </p>
         </div>
       </div>
@@ -1384,20 +1398,38 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                 </div>
               </div>
               {reg.foto && (
-                <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[400px] mx-auto">
-                  <img 
-                    src={reg.foto} 
-                    alt={reg.tipoEvento} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  {reg.validadoIA ? (
-                    <div className="absolute bottom-2 right-2 bg-green-500/90 text-white text-[8px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
-                      <CheckCircle2 className="w-2 h-2" /> IA VALIDADO
-                    </div>
-                  ) : (
-                    <div className="absolute bottom-2 right-2 bg-brand/90 text-white text-[8px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
-                      <AlertTriangle className="w-2 h-2" /> IA DISCREPANCIA
+                <div className="space-y-3">
+                  <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[400px] mx-auto">
+                    <img 
+                      src={reg.foto} 
+                      alt={reg.tipoEvento} 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    {reg.validadoIA ? (
+                      <div className="absolute bottom-2 right-2 bg-green-500/90 text-white text-[8px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
+                        <CheckCircle2 className="w-2 h-2" /> IA VALIDADO
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-2 right-2 bg-brand/90 text-white text-[8px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
+                        <AlertTriangle className="w-2 h-2" /> IA DISCREPANCIA
+                      </div>
+                    )}
+                  </div>
+
+                  {reg.fotoMerma && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-brand uppercase flex items-center gap-1">
+                        <Scale className="w-3 h-3" /> Evidencia de Merma:
+                      </p>
+                      <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[300px] mx-auto border-2 border-brand/20">
+                        <img 
+                          src={reg.fotoMerma} 
+                          alt="Merma" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1506,9 +1538,10 @@ function AddPieceForm({ configCortes, onSubmit, onCancel }: { configCortes: Conf
   );
 }
 
-function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza; isAdmin: boolean; onSubmit: (id: string, peso: number, foto: string, porciones?: Porcion[]) => Promise<void>; onCancel: () => void }) {
+function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza; isAdmin: boolean; onSubmit: (id: string, peso: number, foto: string, porciones?: Porcion[], fotoMerma?: string) => Promise<void>; onCancel: () => void }) {
   const [peso, setPeso] = useState("");
   const [foto, setFoto] = useState<string | null>(null);
+  const [fotoMerma, setFotoMerma] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [porciones, setPorciones] = useState<Porcion[]>([]);
   const [newPorcion, setNewPorcion] = useState({ pesoGramos: "", cantidad: "" });
@@ -1565,7 +1598,13 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
 
     setIsSubmitting(true);
     try {
-      await onSubmit(pieza.id, pesoNum, foto, isProducido ? porciones : undefined);
+      await onSubmit(
+        pieza.id, 
+        pesoNum, 
+        foto, 
+        isProducido ? porciones : undefined,
+        isProducido ? fotoMerma || undefined : undefined
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -1648,10 +1687,30 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
 
       <div className="space-y-2">
         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-          <CameraIcon className="w-4 h-4" /> Evidencia Fotográfica
+          <CameraIcon className="w-4 h-4" /> Evidencia Fotográfica (Producto)
         </label>
         <CameraCapture onCapture={setFoto} isAdmin={isAdmin} />
       </div>
+
+      {isProducido && (
+        <div className="space-y-4 p-4 bg-brand/5 rounded-2xl border border-brand/20">
+          <div className="flex items-center gap-2 text-brand">
+            <AlertTriangle className="w-5 h-5" />
+            <h3 className="font-bold">Evidencia de Merma (Opcional)</h3>
+          </div>
+          
+          <p className="text-xs text-slate-500">
+            Capture una foto de los desperdicios o recortes en la báscula para respaldar el rendimiento registrado.
+          </p>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <CameraIcon className="w-4 h-4" /> Foto de Merma
+            </label>
+            <CameraCapture onCapture={setFotoMerma} isAdmin={isAdmin} />
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-4 pt-4">
         <button 
