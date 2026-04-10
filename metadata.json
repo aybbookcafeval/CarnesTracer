@@ -1,0 +1,7 @@
+{
+  "name": "CarnesTracer - Meat Traceability System",
+  "description": "A professional MVP for tracking meat assets from freezer to production with full auditability, weight logs, and yield alerts.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
