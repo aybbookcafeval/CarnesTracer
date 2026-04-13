@@ -1,4 +1,4 @@
-# Meat Traceability & AI Audit System 🥩🤖
+# Meat Traceability & AI Audit System 🥩
 
 Sistema profesional de trazabilidad y auditoría de pesos para la industria cárnica, potenciado por Inteligencia Artificial (Gemini 3 Flash).
 
