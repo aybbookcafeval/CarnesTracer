@@ -97,3 +97,70 @@ export async function validateWeightWithAI(imageBase64: string, expectedWeight: 
     };
   }
 }
+
+export interface ExtractedProduct {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+}
+
+export async function extractProductsFromImage(imageBase64: string): Promise<ExtractedProduct[]> {
+  if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
+    console.warn("GEMINI_API_KEY not found. AI extraction is disabled.");
+    return [];
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const base64Data = imageBase64.split(",")[1] || imageBase64;
+
+    const prompt = `TAREA: Eres un asistente de inventario. Analiza la imagen proporcionada y extrae una lista de los productos visibles junto con sus cantidades y unidades de medida estimadas (ej. kg, litros, unidades, paquetes).
+    
+    RESPUESTA JSON OBLIGATORIA (estrictamente un array de objetos):
+    [
+      {
+        "nombre": "Nombre del producto",
+        "cantidad": número,
+        "unidad": "unidad de medida"
+      }
+    ]
+    
+    Si no detectas productos claros, devuelve un array vacío []. No incluyas texto adicional fuera del JSON.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: "image/jpeg",
+                data: base64Data,
+              },
+            },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+
+    const responseText = response.text || "[]";
+    const data = JSON.parse(responseText);
+    
+    if (Array.isArray(data)) {
+      return data.map((item: any) => ({
+        nombre: item.nombre || "Producto desconocido",
+        cantidad: Number(item.cantidad) || 1,
+        unidad: item.unidad || "unid"
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.error("Gemini AI Extraction Error:", error);
+    return [];
+  }
+}

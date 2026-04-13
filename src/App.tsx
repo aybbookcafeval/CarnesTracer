@@ -22,7 +22,8 @@ import {
   Save,
   Trash2,
   Share2,
-  Printer
+  Printer,
+  ArrowRightLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
@@ -45,6 +46,7 @@ import {
 } from "./types";
 import { cn } from "./lib/utils";
 import { CameraCapture } from "./components/CameraCapture";
+import { TransferenciasView } from "./components/TransferenciasView";
 import { validateWeightWithAI } from "./services/geminiService";
 
 // Mock User
@@ -62,7 +64,7 @@ export default function App() {
   const [configCortes, setConfigCortes] = useState<ConfigCorte[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "audit" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "audit" | "settings" | "transferencias">("dashboard");
   const [isAddingPiece, setIsAddingPiece] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Pieza | null>(null);
   const [detailsModal, setDetailsModal] = useState<{ open: boolean; piece: Pieza | null }>({ open: false, piece: null });
@@ -374,8 +376,7 @@ export default function App() {
       iaReason = aiResult.reason;
 
       if (!isValid) {
-        alert(`ERROR DE VALIDACIÓN IA:\n${iaReason}\n\nNo se puede completar el registro. Asegúrese de que la foto muestre claramente la carne sobre la báscula y que el peso coincida.`);
-        return;
+        alert(`AVISO DE DISCREPANCIA IA:\n${iaReason}\n\nEl sistema ha detectado una posible diferencia, pero se permitirá el registro manual como solicitó.`);
       }
     } catch (e) {
       console.error("AI Validation failed", e);
@@ -496,6 +497,12 @@ export default function App() {
           icon={<LayoutDashboard />} 
           label="Dashboard" 
         />
+        <NavButton 
+          active={activeTab === "transferencias"} 
+          onClick={() => setActiveTab("transferencias")} 
+          icon={<ArrowRightLeft />} 
+          label="Transferencias" 
+        />
         {user?.rol !== RolUsuario.COCINA && (
           <NavButton 
             active={activeTab === "audit"} 
@@ -563,6 +570,7 @@ export default function App() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {activeTab === "dashboard" && "Panel de Control"}
+              {activeTab === "transferencias" && "Transferencias de Almacén"}
               {activeTab === "audit" && "Historial de Pesos"}
               {activeTab === "settings" && "Configuración de Cortes"}
             </h1>
@@ -587,6 +595,17 @@ export default function App() {
                 >
                   <Plus className="w-5 h-5" />
                   <span className="hidden sm:inline">Nueva Pieza</span>
+                </button>
+              </div>
+            )}
+            {activeTab === "transferencias" && (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => document.dispatchEvent(new Event('open-nueva-transferencia'))}
+                  className="bg-black text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span className="hidden sm:inline">Nueva Transferencia</span>
                 </button>
               </div>
             )}
@@ -930,6 +949,9 @@ export default function App() {
         )}
         {activeTab === "settings" && user?.rol === RolUsuario.ADMIN && (
           <SettingsView configCortes={configCortes} setConfigCortes={setConfigCortes} authSession={authSession} />
+        )}
+        {activeTab === "transferencias" && (
+          <TransferenciasView user={user} />
         )}
           </>
         )}
@@ -1323,7 +1345,7 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
         <h3 className="font-bold text-slate-900">Resumen</h3>
         <ShareButton 
           title={`Trazabilidad ${pieza.tipo}`}
-          text={`Trazabilidad de Pieza: ${pieza.tipo}\nID: ${pieza.id}\nEstado: ${pieza.estado}\n\nResumen de Pesos:\n- Congelado: ${pieza.pesoCongelado}kg\n- Descongelado: ${pieza.pesoDescongelado}kg\n- Producido: ${pieza.pesoProducido}kg\n\nDetalles de Porciones:\n${pieza.porciones?.map(p => `- ${p.pesoGramos}g: ${p.cantidad} unid`).join('\n') || 'Sin porciones'}`}
+          text={`Trazabilidad de Pieza: ${pieza.tipo}\nID: ${pieza.id}\nEstado: ${pieza.estado}\n\nResumen de Pesos:\n- Congelado: ${pieza.pesoCongelado}kg\n- Descongelado: ${pieza.pesoDescongelado}kg\n- Producido: ${pieza.pesoProducido}kg\n\nIndicadores:\n- Merma Descong: ${pieza.mermaDescongelado.toFixed(1)}%\n- Merma Total: ${pieza.mermaTotal.toFixed(1)}%\n- Rendimiento: ${pieza.rendimiento.toFixed(1)}%\n\nDetalles de Porciones:\n${pieza.porciones?.map(p => `- ${p.pesoGramos}g: ${p.cantidad} unid`).join('\n') || 'Sin porciones'}`}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -1580,29 +1602,31 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     }
 
     // Validation: Logical weight progression (Loss-based process)
+    let warningMsg = "";
     if (pieza.estado === EstadoPieza.CONGELADA) {
-      // Current state is CONGELADA, we are registering DESCONGELADO
       if (pesoNum > pieza.pesoCongelado) {
-        alert(`Aviso: El peso DESCONGELADO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg). Se registrará de todas formas.`);
+        warningMsg = `Aviso: El peso DESCONGELADO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg).`;
       }
     } else if (pieza.estado === EstadoPieza.DESCONGELADA) {
-      // Current state is DESCONGELADA, we are registering PRODUCIDO
       if (pesoNum > pieza.pesoDescongelado) {
-        alert(`Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso DESCONGELADO (${pieza.pesoDescongelado}kg). Se registrará de todas formas.`);
-      }
-      if (pesoNum > pieza.pesoCongelado) {
-        alert(`Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg). Se registrará de todas formas.`);
+        warningMsg = `Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso DESCONGELADO (${pieza.pesoDescongelado}kg).`;
+      } else if (pesoNum > pieza.pesoCongelado) {
+        warningMsg = `Aviso: El peso PRODUCIDO (${pesoNum}kg) es mayor al peso inicial CONGELADO (${pieza.pesoCongelado}kg).`;
       }
 
-      // Validation: Sum of portions vs Produced weight (6% margin)
+      // Validation: Sum of portions vs Produced weight (10% margin)
       const totalPorcionesGramos = porciones.reduce((sum, p) => sum + (p.pesoGramos * p.cantidad), 0);
       const totalPorcionesKg = totalPorcionesGramos / 1000;
       const margenError = pesoNum * 0.1;
       
       if (Math.abs(totalPorcionesKg - pesoNum) > margenError) {
-        alert(`Error: La suma de las porciones (${totalPorcionesKg.toFixed(2)}kg) no coincide con el peso producido (${pesoNum}kg) dentro del margen del 6%.`);
-        return;
+        const portionWarning = `La suma de las porciones (${totalPorcionesKg.toFixed(2)}kg) no coincide con el peso producido (${pesoNum}kg).`;
+        warningMsg = warningMsg ? `${warningMsg}\n\n${portionWarning}` : `Aviso: ${portionWarning}`;
       }
+    }
+
+    if (warningMsg) {
+      alert(`${warningMsg}\n\nSe registrará de todas formas.`);
     }
 
     setIsSubmitting(true);

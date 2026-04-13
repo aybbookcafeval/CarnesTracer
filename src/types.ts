@@ -78,6 +78,29 @@ export interface Usuario {
   rol: RolUsuario;
 }
 
+export enum Sede {
+  ALMACEN_PRINCIPAL = "Almacén Principal",
+  COCINA = "Cocina",
+  PASTELERIA = "Pastelería",
+  BARRA = "Barra",
+}
+
+export interface ProductoTransferencia {
+  nombre: string;
+  cantidad: number;
+  unidad: string;
+}
+
+export interface Transferencia {
+  id: string;
+  sedeOrigen: Sede;
+  sedeDestino: Sede;
+  productos: ProductoTransferencia[];
+  fotoUrl?: string;
+  usuario: string;
+  fecha: string;
+}
+
 export const ESTADO_COLORS: Record<EstadoPieza, string> = {
   [EstadoPieza.CREADA]: "bg-gray-100 text-gray-800 border-gray-200",
   [EstadoPieza.CONGELADA]: "bg-blue-100 text-blue-800 border-blue-200",

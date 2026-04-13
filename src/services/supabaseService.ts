@@ -197,5 +197,40 @@ export const supabaseService = {
       nombre: data.nombre_completo || data.email.split('@')[0],
       rol: data.rol === 'admin' ? RolUsuario.ADMIN : RolUsuario.COCINA
     };
+  },
+
+  // Transferencias
+  async createTransferencia(transferencia: any) {
+    const { error } = await getClient()
+      .from('transferencias')
+      .insert({
+        id: transferencia.id,
+        sede_origen: transferencia.sedeOrigen,
+        sede_destino: transferencia.sedeDestino,
+        productos: JSON.stringify(transferencia.productos),
+        foto_url: transferencia.fotoUrl,
+        usuario: transferencia.usuario,
+        fecha: transferencia.fecha
+      });
+    if (error) throw error;
+  },
+
+  async getTransferencias() {
+    const { data, error } = await getClient()
+      .from('transferencias')
+      .select('*')
+      .order('fecha', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data.map(t => ({
+      id: t.id,
+      sedeOrigen: t.sede_origen,
+      sedeDestino: t.sede_destino,
+      productos: typeof t.productos === 'string' ? JSON.parse(t.productos) : t.productos,
+      fotoUrl: t.foto_url,
+      usuario: t.usuario,
+      fecha: t.fecha
+    }));
   }
 };
