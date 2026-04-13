@@ -25,6 +25,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [selectedTransfer, setSelectedTransfer] = useState<Transferencia | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -374,7 +375,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     </tr>
                   ) : (
                     paginatedTransferencias.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setSelectedTransfer(t)}>
                         <td className="p-4 whitespace-nowrap">
                           <div className="font-medium text-slate-900">{format(new Date(t.fecha), "dd MMM yyyy", { locale: es })}</div>
                           <div className="text-xs text-slate-500">{format(new Date(t.fecha), "HH:mm")}</div>
@@ -400,7 +401,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                         </td>
                         <td className="p-4 text-right">
                           <button 
-                            onClick={() => handleShare(t)}
+                            onClick={(e) => { e.stopPropagation(); handleShare(t); }}
                             className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-lg transition-colors"
                             title="Compartir"
                           >
@@ -413,6 +414,43 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 </tbody>
               </table>
             </div>
+            
+            {/* Modal de detalles */}
+            {selectedTransfer && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedTransfer(null)}>
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold">Detalles de Transferencia</h2>
+                    <button onClick={() => setSelectedTransfer(null)} className="text-slate-400 hover:text-slate-600">Cerrar</button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">ID</p><p className="font-medium">{selectedTransfer.id}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Fecha</p><p className="font-medium">{format(new Date(selectedTransfer.fecha), "dd/MM/yyyy HH:mm", { locale: es })}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Origen</p><p className="font-medium">{selectedTransfer.sedeOrigen}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Destino</p><p className="font-medium">{selectedTransfer.sedeDestino}</p></div>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase text-xs mb-2">Productos</p>
+                      <div className="space-y-2">
+                        {selectedTransfer.productos.map((p, i) => (
+                          <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                            <span className="font-medium">{p.nombre}</span>
+                            <span className="font-bold text-brand">{p.cantidad} {p.unidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {selectedTransfer.fotoUrl && (
+                      <div>
+                        <p className="text-slate-500 font-bold uppercase text-xs mb-2">Evidencia</p>
+                        <img src={selectedTransfer.fotoUrl} alt="Evidencia" className="w-full rounded-lg border border-slate-200" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Pagination */}
             {totalPages > 1 && (
