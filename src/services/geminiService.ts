@@ -114,18 +114,16 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = imageBase64.split(",")[1] || imageBase64;
 
-    const prompt = `TAREA: Eres un asistente de inventario. Analiza la imagen proporcionada y extrae una lista de los productos visibles junto con sus cantidades y unidades de medida estimadas (ej. kg, litros, unidades, paquetes).
-    
-    RESPUESTA JSON OBLIGATORIA (estrictamente un array de objetos):
-    [
-      {
-        "nombre": "Nombre del producto",
-        "cantidad": número,
-        "unidad": "unidad de medida"
-      }
-    ]
-    
-    Si no detectas productos claros, devuelve un array vacío []. No incluyas texto adicional fuera del JSON.`;
+    const prompt = `Analiza esta imagen de productos de almacén de un restaurante. 
+              Identifica los productos y sus cantidades.
+              
+              Reglas estrictas:
+              1. Devuelve una lista de objetos JSON.
+              2. Formato: {"nombre": "PRODUCTO", "cantidad": "valor"}.
+              3. La letra 'g' para gramos debe ir siempre en minúscula (ej: 500g).
+              4. Ejemplo de salida: {"nombre": "REDUC. BALSAMICO", "cantidad": "20g"}.
+              5. Si no estás seguro de un producto, intenta describirlo brevemente.
+              6. Solo devuelve el JSON, sin bloques de código markdown ni texto adicional.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -154,8 +152,8 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     if (Array.isArray(data)) {
       return data.map((item: any) => ({
         nombre: item.nombre || "Producto desconocido",
-        cantidad: Number(item.cantidad) || 1,
-        unidad: item.unidad || "unid"
+        cantidad: parseFloat(item.cantidad) || 1,
+        unidad: item.cantidad?.toString().replace(/[\d.]/g, '') || "unid"
       }));
     }
     return [];
