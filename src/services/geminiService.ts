@@ -123,12 +123,11 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
               
               REGLAS:
               - Si la letra es difícil de leer, haz tu mejor esfuerzo por interpretar el nombre del producto basándote en el contexto de una cocina profesional.
-              - NO devuelvas una lista vacía si hay texto visible que parezca una lista de productos. Extrae lo que sea legible.
               - Devuelve una lista de objetos con los campos: nombre, cantidad, unidad.
               - La cantidad debe ser un número (usa punto para decimales si es necesario).`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash-latest",
+      model: "gemini-3.1-pro-preview",
       contents: [
         {
           role: "user",
@@ -173,12 +172,8 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
       }));
     }
     return [];
-  } catch (error: any) {
+  } catch (error) {
     console.error("Gemini AI Extraction Error:", error);
-    // Propagate quota or specific errors
-    if (error.message?.includes("429") || error.message?.includes("quota")) {
-      throw new Error("Límite de uso de IA alcanzado (Cuota). Por favor, espere un minuto antes de intentar de nuevo.");
-    }
-    throw error;
+    return [];
   }
 }

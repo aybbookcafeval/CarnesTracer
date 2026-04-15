@@ -60,9 +60,9 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       } else {
         toast.error("No se detectaron productos. Intente con una foto más clara.");
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error extracting products:", error);
-      toast.error(error.message || "Error al extraer productos de la imagen.");
+      toast.error("Error al extraer productos de la imagen.");
     } finally {
       setIsExtracting(false);
     }
