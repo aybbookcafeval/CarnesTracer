@@ -62,9 +62,9 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       } else {
         toast.error("No se detectaron productos en la imagen. Por favor, intente con una foto más clara.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error extracting:", error);
-      toast.error("Error técnico al procesar la imagen con IA.");
+      toast.error(error.message || "Error técnico al procesar la imagen con IA.");
     } finally {
       setIsExtracting(false);
     }
