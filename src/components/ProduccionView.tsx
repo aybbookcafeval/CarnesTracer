@@ -13,9 +13,7 @@ interface Props {
 
 export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [produccion, setProduccion] = useState<Produccion[]>([]);
-  const [nombrePreparado, setNombrePreparado] = useState("");
-  const [cantidad, setCantidad] = useState("");
-  const [unidad, setUnidad] = useState<'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes'>('unidades');
+  const [productos, setProductos] = useState<{nombre: string, cantidad: number, unidad: string}[]>([]);
   const [encargado, setEncargado] = useState(user?.nombre || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -31,11 +29,11 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     try {
       const extracted = await extractProductsFromImage(imageSrc);
       if (extracted.length > 0) {
-        // Just load the first one for now, or could handle multiple
-        const item = extracted[0];
-        setNombrePreparado(item.nombre);
-        setCantidad(item.cantidad.toString());
-        setUnidad(item.unidad as any);
+        setProductos(extracted.map(p => ({
+          nombre: p.nombre,
+          cantidad: p.cantidad,
+          unidad: p.unidad
+        })));
       }
     } catch (error) {
       console.error("Error extracting:", error);
@@ -45,25 +43,41 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     }
   };
 
+  const handleAddProduct = () => {
+    setProductos([...productos, { nombre: "", cantidad: 0, unidad: "unidades" }]);
+  };
+
+  const handleUpdateProduct = (index: number, field: string, value: any) => {
+    const newProductos = [...productos];
+    newProductos[index] = { ...newProductos[index], [field]: value };
+    setProductos(newProductos);
+  };
+
+  const handleRemoveProduct = (index: number) => {
+    setProductos(productos.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombrePreparado || !cantidad || !encargado) return;
+    if (productos.length === 0 || !encargado) return;
 
     setIsSubmitting(true);
-    const newProduccion: Produccion = {
-      id: `PROD-${Date.now()}`,
-      nombrePreparado,
-      cantidad: parseFloat(cantidad),
-      unidad,
-      fecha: new Date().toISOString(),
-      encargado
-    };
-
     try {
-      await supabaseService.createProduccion(newProduccion);
-      setProduccion([newProduccion, ...produccion]);
-      setNombrePreparado("");
-      setCantidad("");
+      const newProds = productos.map(p => ({
+        id: `PROD-${Date.now()}-${Math.random()}`,
+        nombrePreparado: p.nombre,
+        cantidad: p.cantidad,
+        unidad: p.unidad as any,
+        fecha: new Date().toISOString(),
+        encargado
+      }));
+      
+      for (const p of newProds) {
+        await supabaseService.createProduccion(p);
+      }
+      
+      setProduccion([...newProds, ...produccion]);
+      setProductos([]);
     } catch (error) {
       console.error("Error saving production:", error);
       alert("Error al guardar la producción.");
@@ -96,49 +110,59 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input 
-              type="text" 
-              placeholder="Nombre del preparado" 
-              value={nombrePreparado} 
-              onChange={e => setNombrePreparado(e.target.value)}
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl"
-              required
-            />
-            <div className="flex gap-2">
-              <input 
-                type="number" 
-                placeholder="Cantidad" 
-                value={cantidad} 
-                onChange={e => setCantidad(e.target.value)}
-                className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex-1"
-                required
-              />
-              <select 
-                value={unidad} 
-                onChange={e => setUnidad(e.target.value as any)}
-                className="p-3 bg-slate-50 border border-slate-200 rounded-xl"
-              >
-                <option value="kg">kg</option>
-                <option value="g">g</option>
-                <option value="unidades">unidades</option>
-                <option value="lts">lts</option>
-                <option value="potes">potes</option>
-                <option value="paquetes">paquetes</option>
-              </select>
-            </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {productos.map((prod, index) => (
+              <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-center bg-slate-50 p-2 rounded-xl">
+                <input 
+                  type="text" 
+                  placeholder="Preparado" 
+                  value={prod.nombre} 
+                  onChange={e => handleUpdateProduct(index, 'nombre', e.target.value)}
+                  className="p-2 border border-slate-200 rounded-lg"
+                  required
+                />
+                <input 
+                  type="number" 
+                  placeholder="Cantidad" 
+                  value={prod.cantidad} 
+                  onChange={e => handleUpdateProduct(index, 'cantidad', parseFloat(e.target.value))}
+                  className="p-2 border border-slate-200 rounded-lg"
+                  required
+                />
+                <select 
+                  value={prod.unidad} 
+                  onChange={e => handleUpdateProduct(index, 'unidad', e.target.value)}
+                  className="p-2 border border-slate-200 rounded-lg"
+                >
+                  <option value="kg">kg</option>
+                  <option value="g">g</option>
+                  <option value="unidades">unidades</option>
+                  <option value="lts">lts</option>
+                  <option value="potes">potes</option>
+                  <option value="paquetes">paquetes</option>
+                </select>
+                <button type="button" onClick={() => handleRemoveProduct(index)} className="text-red-500 p-2">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            ))}
+            
+            <button type="button" onClick={handleAddProduct} className="flex items-center gap-2 text-brand font-bold text-sm">
+              <Plus className="w-4 h-4" /> Agregar preparado
+            </button>
+
             <input 
               type="text" 
               placeholder="Encargado" 
               value={encargado} 
               onChange={e => setEncargado(e.target.value)}
-              className="p-3 bg-slate-50 border border-slate-200 rounded-xl"
+              className="p-3 w-full bg-slate-50 border border-slate-200 rounded-xl"
               required
             />
             <button 
               type="submit" 
-              disabled={isSubmitting}
-              className="p-3 bg-brand text-white font-bold rounded-xl hover:bg-brand/90 transition-colors"
+              disabled={isSubmitting || productos.length === 0}
+              className="p-3 w-full bg-brand text-white font-bold rounded-xl hover:bg-brand/90 transition-colors"
             >
               {isSubmitting ? "Guardando..." : "Registrar Producción"}
             </button>
