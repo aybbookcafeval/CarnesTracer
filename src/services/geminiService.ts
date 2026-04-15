@@ -146,6 +146,7 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     });
 
     const responseText = response.text || "[]";
+    console.log("Gemini Raw Response:", responseText);
     const data = JSON.parse(responseText);
     
     if (Array.isArray(data)) {
