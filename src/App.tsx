@@ -27,6 +27,7 @@ import {
   ChefHat
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { Toaster } from 'sonner';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSupabase } from "./lib/supabase";
@@ -514,6 +515,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      <Toaster position="top-right" richColors />
       {/* Sidebar / Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-40 md:top-0 md:bottom-auto md:flex-col md:w-20 md:h-full md:border-t-0 md:border-r">
         <div className="hidden md:flex mb-8">
@@ -1257,12 +1259,15 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
           });
           
           if (funcError) {
-            // Si falla el SDK, intentamos un fetch manual como fallback o lanzamos el error detallado
-            console.error('Error en Edge Function:', funcError);
-            throw new Error(funcError.message || 'Error al obtener uso de almacenamiento');
+            console.warn('Edge Function get-storage-usage no disponible:', funcError);
+            setLoading(false);
+            return;
           }
           
-          if (!data) throw new Error('No se recibieron datos de la función');
+          if (!data) {
+            setLoading(false);
+            return;
+          }
 
           setUsage({ 
             usedGB: parseFloat(data.usedGB || 0), 
@@ -1270,17 +1275,8 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
             bucketName: data.bucketName || 'evidencias'
           });
         } catch (err: any) {
-          console.error('Error detallado:', err);
-          
-          // Mensaje más descriptivo para el usuario
-          let friendlyMessage = 'No se pudo cargar el uso de almacenamiento';
-          if (err.message?.includes('Failed to send a request')) {
-            friendlyMessage = 'Error de conexión con la Edge Function. Verifique la configuración de CORS y JWT en el Dashboard de Supabase.';
-          } else if (err.message) {
-            friendlyMessage = err.message;
-          }
-          
-          setError(friendlyMessage);
+          console.warn('Error al obtener uso de almacenamiento:', err);
+          setError(null);
         } finally {
           setLoading(false);
         }

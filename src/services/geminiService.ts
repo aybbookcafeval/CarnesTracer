@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 // Accessing the API key. In Vite, we use define in vite.config.ts to inject process.env.GEMINI_API_KEY
 // We also check import.meta.env as a fallback
@@ -112,18 +112,22 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = imageBase64.split(",")[1] || imageBase64;
 
-    const prompt = `Analiza esta imagen de una lista de producción de alimentos.
-              Identifica los productos preparados y sus cantidades.
+    const prompt = `Eres un experto en digitalización de inventarios para restaurantes. 
+              Analiza esta imagen que contiene una lista de producción de alimentos escrita a mano o impresa.
               
-              Reglas estrictas:
-              1. Devuelve una lista de objetos JSON.
-              2. Formato: {"nombre": "PREPARADO", "cantidad": valor_numerico, "unidad": "unidad"}.
-              3. Unidades permitidas: kg, g, unidades, lts, potes, paquetes.
-              4. Ejemplo de salida: [{"nombre": "Salsa Boloñesa", "cantidad": 2, "unidad": "kg"}].
-              5. Solo devuelve el JSON, sin bloques de código markdown ni texto adicional.`;
+              INSTRUCCIONES:
+              1. Identifica cada producto o preparado en la lista.
+              2. Extrae el nombre exacto del preparado.
+              3. Extrae la cantidad numérica.
+              4. Identifica la unidad de medida (kg, g, unidades, lts, potes, paquetes). Si no se especifica, usa "unidades".
+              
+              REGLAS:
+              - Si la letra es difícil de leer, haz tu mejor esfuerzo por interpretar el nombre del producto basándote en el contexto de una cocina profesional.
+              - Devuelve una lista de objetos con los campos: nombre, cantidad, unidad.
+              - La cantidad debe ser un número (usa punto para decimales si es necesario).`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: [
         {
           role: "user",
@@ -140,6 +144,18 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
       ],
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              nombre: { type: Type.STRING },
+              cantidad: { type: Type.NUMBER },
+              unidad: { type: Type.STRING }
+            },
+            required: ["nombre", "cantidad", "unidad"]
+          }
+        }
       }
     });
 

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, ChefHat, Camera as CameraIcon } from "lucide-react";
+import { Plus, Trash2, ChefHat, Camera as CameraIcon, Search, Filter, Calendar } from "lucide-react";
+import { toast } from "sonner";
 import { Produccion, Usuario } from "../types";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/geminiService";
 import { CameraCapture } from "./CameraCapture";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 
 interface Props {
@@ -19,9 +20,32 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
 
+  // Filter state
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filterEncargado, setFilterEncargado] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+
   useEffect(() => {
     supabaseService.fetchProduccion().then(setProduccion);
   }, []);
+
+  const filteredProduccion = React.useMemo(() => {
+    return produccion.filter(p => {
+      const matchesSearch = p.nombrePreparado.toLowerCase().includes(filterSearch.toLowerCase());
+      const matchesEncargado = p.encargado.toLowerCase().includes(filterEncargado.toLowerCase());
+      
+      let matchesDate = true;
+      if (filterStartDate || filterEndDate) {
+        const prodDate = new Date(p.fecha);
+        const start = filterStartDate ? startOfDay(new Date(filterStartDate)) : new Date(0);
+        const end = filterEndDate ? endOfDay(new Date(filterEndDate)) : new Date();
+        matchesDate = isWithinInterval(prodDate, { start, end });
+      }
+
+      return matchesSearch && matchesEncargado && matchesDate;
+    });
+  }, [produccion, filterSearch, filterEncargado, filterStartDate, filterEndDate]);
 
   const handleCapture = async (imageSrc: string) => {
     setIsCapturing(false);
@@ -34,12 +58,13 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           cantidad: p.cantidad,
           unidad: p.unidad
         })));
+        toast.success(`${extracted.length} productos extraídos con éxito`);
       } else {
-        alert("No se detectaron productos en la imagen. Por favor, intente con una foto más clara o agréguelos manualmente.");
+        toast.error("No se detectaron productos en la imagen. Por favor, intente con una foto más clara.");
       }
     } catch (error) {
       console.error("Error extracting:", error);
-      alert("Error al procesar la imagen.");
+      toast.error("Error técnico al procesar la imagen con IA.");
     } finally {
       setIsExtracting(false);
     }
@@ -80,9 +105,10 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       
       setProduccion([...newProds, ...produccion]);
       setProductos([]);
+      toast.success("Producción registrada correctamente");
     } catch (error) {
       console.error("Error saving production:", error);
-      alert("Error al guardar la producción.");
+      toast.error("Error al guardar la producción en la base de datos.");
     } finally {
       setIsSubmitting(false);
     }
@@ -173,7 +199,57 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       )}
 
       <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <h2 className="text-lg font-bold p-6 border-b border-slate-100">Historial de Producción</h2>
+        <div className="p-6 border-b border-slate-100 space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold">Historial de Producción</h2>
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Filter className="w-4 h-4" />
+              <span>{filteredProduccion.length} registros</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar preparado..." 
+                value={filterSearch}
+                onChange={e => setFilterSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand/20 outline-none"
+              />
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Encargado..." 
+                value={filterEncargado}
+                onChange={e => setFilterEncargado(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand/20 outline-none"
+              />
+            </div>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="date" 
+                value={filterStartDate}
+                onChange={e => setFilterStartDate(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand/20 outline-none"
+              />
+            </div>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input 
+                type="date" 
+                value={filterEndDate}
+                onChange={e => setFilterEndDate(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand/20 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 font-medium">
@@ -185,14 +261,22 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {produccion.map(p => (
-                <tr key={p.id}>
-                  <td className="p-4">{format(new Date(p.fecha), "dd MMM, HH:mm", { locale: es })}</td>
-                  <td className="p-4 font-medium">{p.nombrePreparado}</td>
-                  <td className="p-4">{p.cantidad} {p.unidad}</td>
-                  <td className="p-4">{p.encargado}</td>
+              {filteredProduccion.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-slate-400">
+                    No se encontraron registros con los filtros aplicados.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                filteredProduccion.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-slate-600">{format(new Date(p.fecha), "dd MMM, HH:mm", { locale: es })}</td>
+                    <td className="p-4 font-medium text-slate-900">{p.nombrePreparado}</td>
+                    <td className="p-4 text-slate-700 font-semibold">{p.cantidad} {p.unidad}</td>
+                    <td className="p-4 text-slate-600">{p.encargado}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
