@@ -27,7 +27,6 @@ import {
   ChefHat
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Toaster } from 'sonner';
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSupabase } from "./lib/supabase";
@@ -515,7 +514,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <Toaster position="top-right" richColors />
       {/* Sidebar / Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex justify-around items-center z-40 md:top-0 md:bottom-auto md:flex-col md:w-20 md:h-full md:border-t-0 md:border-r">
         <div className="hidden md:flex mb-8">

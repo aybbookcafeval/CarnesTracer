@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
-import { toast } from "sonner";
 import { Sede, Transferencia, ProductoTransferencia, Usuario } from "../types";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/geminiService";
@@ -54,15 +53,10 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     setIsExtracting(true);
     try {
       const extracted = await extractProductsFromImage(imageSrc);
-      if (extracted.length > 0) {
-        setProductos(extracted);
-        toast.success(`${extracted.length} productos extraídos con éxito`);
-      } else {
-        toast.error("No se detectaron productos. Intente con una foto más clara.");
-      }
+      setProductos(extracted);
     } catch (error) {
       console.error("Error extracting products:", error);
-      toast.error("Error al extraer productos de la imagen.");
+      alert("Error al extraer productos de la imagen.");
     } finally {
       setIsExtracting(false);
     }
@@ -84,11 +78,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   const handleSave = async () => {
     if (productos.length === 0) {
-      toast.error("Agregue al menos un producto.");
+      alert("Agregue al menos un producto.");
       return;
     }
     if (productos.some(p => !p.nombre.trim())) {
-      toast.error("Todos los productos deben tener un nombre.");
+      alert("Todos los productos deben tener un nombre.");
       return;
     }
 
@@ -117,10 +111,10 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setFoto(null);
       setProductos([]);
       setIsCapturing(false);
-      toast.success("Transferencia guardada exitosamente.");
+      alert("Transferencia guardada exitosamente.");
     } catch (error) {
       console.error("Error saving transferencia:", error);
-      toast.error("Error al guardar la transferencia.");
+      alert("Error al guardar la transferencia.");
     } finally {
       setIsSubmitting(false);
     }
@@ -140,7 +134,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       }
     } else {
       navigator.clipboard.writeText(text);
-      toast.info("Texto copiado al portapapeles.");
+      alert("Texto copiado al portapapeles (Web Share API no soportada).");
     }
   };
 

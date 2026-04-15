@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, ChefHat, Camera as CameraIcon, Search, Filter, Calendar } from "lucide-react";
-import { toast } from "sonner";
 import { Produccion, Usuario } from "../types";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/geminiService";
@@ -58,13 +57,12 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           cantidad: p.cantidad,
           unidad: p.unidad
         })));
-        toast.success(`${extracted.length} productos extraídos con éxito`);
       } else {
-        toast.error("No se detectaron productos en la imagen. Por favor, intente con una foto más clara.");
+        alert("No se detectaron productos en la imagen. Por favor, intente con una foto más clara o agréguelos manualmente.");
       }
     } catch (error) {
       console.error("Error extracting:", error);
-      toast.error("Error técnico al procesar la imagen con IA.");
+      alert("Error al procesar la imagen.");
     } finally {
       setIsExtracting(false);
     }
@@ -105,10 +103,9 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       
       setProduccion([...newProds, ...produccion]);
       setProductos([]);
-      toast.success("Producción registrada correctamente");
     } catch (error) {
       console.error("Error saving production:", error);
-      toast.error("Error al guardar la producción en la base de datos.");
+      alert("Error al guardar la producción.");
     } finally {
       setIsSubmitting(false);
     }

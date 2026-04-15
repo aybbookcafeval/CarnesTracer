@@ -1,6 +1,5 @@
 import React, { useRef, useState, useCallback } from "react";
 import { Camera, RefreshCw, Check, Upload } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "../lib/utils";
 
 interface CameraCaptureProps {
@@ -42,9 +41,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
       setIsStreaming(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
-      const msg = "No se pudo acceder a la cámara. Intente subir un archivo.";
-      setError(msg);
-      toast.error(msg);
+      setError("No se pudo acceder a la cámara. Intente subir un archivo.");
     }
   };
 
