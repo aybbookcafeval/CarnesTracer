@@ -34,6 +34,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           cantidad: p.cantidad,
           unidad: p.unidad
         })));
+      } else {
+        alert("No se detectaron productos en la imagen. Por favor, intente con una foto más clara o agréguelos manualmente.");
       }
     } catch (error) {
       console.error("Error extracting:", error);
