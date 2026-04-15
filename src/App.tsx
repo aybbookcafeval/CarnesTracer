@@ -23,7 +23,8 @@ import {
   Trash2,
   Share2,
   Printer,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ChefHat
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
@@ -37,6 +38,7 @@ import {
   Pieza, 
   RegistroPeso, 
   Usuario, 
+  Produccion,
   ESTADO_COLORS, 
   NEXT_STATE, 
   EVENT_FOR_STATE,
@@ -47,6 +49,7 @@ import {
 import { cn } from "./lib/utils";
 import { CameraCapture } from "./components/CameraCapture";
 import { TransferenciasView } from "./components/TransferenciasView";
+import { ProduccionView } from "./components/ProduccionView";
 import { validateWeightWithAI } from "./services/geminiService";
 
 // Mock User
@@ -64,10 +67,14 @@ export default function App() {
   const [configCortes, setConfigCortes] = useState<ConfigCorte[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "audit" | "settings" | "transferencias">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "audit" | "settings" | "transferencias" | "produccion">("dashboard");
+  const [produccion, setProduccion] = useState<Produccion[]>([]);
   const [isAddingPiece, setIsAddingPiece] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<Pieza | null>(null);
   const [detailsModal, setDetailsModal] = useState<{ open: boolean; piece: Pieza | null }>({ open: false, piece: null });
+  const [auditModal, setAuditModal] = useState<{ open: boolean; piece: Pieza | null }>({ open: false, piece: null });
+  const [auditComment, setAuditComment] = useState("");
+  const [showAuditedOnly, setShowAuditedOnly] = useState(false);
   const [registrationModal, setRegistrationModal] = useState<{ open: boolean; piece: Pieza | null }>({ open: false, piece: null });
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -355,6 +362,23 @@ export default function App() {
     }
   };
 
+  const handleAudit = async () => {
+    if (!auditModal.piece) return;
+    try {
+      await supabaseService.updatePieza({
+        id: auditModal.piece.id,
+        auditado: true,
+        comentarioAuditoria: auditComment
+      });
+      setPiezas(piezas.map(p => p.id === auditModal.piece!.id ? { ...p, auditado: true, comentarioAuditoria: auditComment } : p));
+      setAuditModal({ open: false, piece: null });
+      setAuditComment("");
+    } catch (error) {
+      console.error("Error auditing piece:", error);
+      alert("Error al auditar la pieza.");
+    }
+  };
+
   const registerWeight = async (pieceId: string, peso: number, foto: string, porciones?: Porcion[], fotoMerma?: string) => {
     const piece = piezas.find(p => p.id === pieceId);
     if (!piece) return;
@@ -435,6 +459,7 @@ export default function App() {
   // Alerts
   const alerts = useMemo(() => {
     return piezas.filter(p => {
+      if (p.auditado) return false;
       const config = configCortes.find(c => c.nombre === p.tipo);
       const mDescongMax = config?.mermaDescongeladoMax ?? 8;
       const mTotalMax = config?.mermaTotalMax ?? 22;
@@ -472,12 +497,15 @@ export default function App() {
         return {
           piezaId,
           tipo: piece?.tipo || "Pieza Desconocida",
+          auditado: piece?.auditado || false,
+          comentarioAuditoria: piece?.comentarioAuditoria,
           regs: regs.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()),
           lastUpdate: Math.max(...regs.map(r => new Date(r.fecha).getTime()))
         };
       })
+      .filter(g => !showAuditedOnly || g.auditado)
       .sort((a, b) => b.lastUpdate - a.lastUpdate);
-  }, [registros, piezas]);
+  }, [registros, piezas, showAuditedOnly]);
 
   const paginatedAudit = useMemo(() => {
     const start = (auditPage - 1) * AUDIT_ITEMS_PER_PAGE;
@@ -502,6 +530,12 @@ export default function App() {
           onClick={() => setActiveTab("transferencias")} 
           icon={<ArrowRightLeft />} 
           label="Transferencias" 
+        />
+        <NavButton 
+          active={activeTab === "produccion"} 
+          onClick={() => setActiveTab("produccion")} 
+          icon={<ChefHat />} 
+          label="Producción" 
         />
         {user?.rol !== RolUsuario.COCINA && (
           <NavButton 
@@ -824,12 +858,20 @@ export default function App() {
                           })()}
                         </div>
                       </div>
-                      <button 
-                        onClick={() => setDetailsModal({ open: true, piece: p })}
-                        className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-                      >
-                        <ChevronRight className="w-5 h-5 text-slate-400" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setAuditModal({ open: true, piece: p })}
+                          className="px-3 py-1.5 bg-brand text-white text-xs font-bold rounded-lg hover:bg-brand/90 transition-colors"
+                        >
+                          Auditada
+                        </button>
+                        <button 
+                          onClick={() => setDetailsModal({ open: true, piece: p })}
+                          className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                          <ChevronRight className="w-5 h-5 text-slate-400" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -875,6 +917,18 @@ export default function App() {
 
         {activeTab === "audit" && user?.rol !== RolUsuario.COCINA && (
           <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Historial de Pesos</h2>
+              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={showAuditedOnly} 
+                  onChange={(e) => setShowAuditedOnly(e.target.checked)}
+                  className="rounded border-slate-300 text-brand focus:ring-brand"
+                />
+                Solo auditadas
+              </label>
+            </div>
             {groupedAudit.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
                 <History className="w-12 h-12 text-slate-300 mx-auto mb-4" />
@@ -894,13 +948,26 @@ export default function App() {
                           <p className="text-[10px] text-slate-400 font-mono mt-1">{group.piezaId}</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => setDetailsModal({ open: true, piece: piezas.find(p => p.id === group.piezaId) || null })}
-                        className="text-xs font-bold text-blue-600 hover:underline"
-                      >
-                        Ver Trazabilidad
-                      </button>
+                      <div className="flex items-center gap-4">
+                        {group.auditado && (
+                          <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">
+                            Auditada
+                          </span>
+                        )}
+                        <button 
+                          onClick={() => setDetailsModal({ open: true, piece: piezas.find(p => p.id === group.piezaId) || null })}
+                          className="text-xs font-bold text-blue-600 hover:underline"
+                        >
+                          Ver Trazabilidad
+                        </button>
+                      </div>
                     </div>
+                    
+                    {group.auditado && group.comentarioAuditoria && (
+                      <div className="px-2 text-xs text-slate-500 italic">
+                        Comentario: {group.comentarioAuditoria}
+                      </div>
+                    )}
                     
                     <div className="space-y-2">
                       {group.regs.map(r => (
@@ -953,6 +1020,9 @@ export default function App() {
         {activeTab === "transferencias" && (
           <TransferenciasView user={user} />
         )}
+        {activeTab === "produccion" && (
+          <ProduccionView user={user} />
+        )}
           </>
         )}
       </main>
@@ -989,6 +1059,24 @@ export default function App() {
               registros={registros.filter(r => r.piezaId === detailsModal.piece?.id)} 
               configCortes={configCortes}
             />
+          </Modal>
+        )}
+        {auditModal.open && auditModal.piece && (
+          <Modal title="Auditar Alerta" onClose={() => setAuditModal({ open: false, piece: null })}>
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500">¿Estás seguro de marcar esta alerta como auditada?</p>
+              <textarea 
+                value={auditComment}
+                onChange={(e) => setAuditComment(e.target.value)}
+                placeholder="Comentario de auditoría..."
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                rows={3}
+              />
+              <div className="flex justify-end gap-2">
+                <button onClick={() => setAuditModal({ open: false, piece: null })} className="px-4 py-2 text-slate-500 font-bold">Cancelar</button>
+                <button onClick={handleAudit} className="px-4 py-2 bg-brand text-white font-bold rounded-xl">Confirmar</button>
+              </div>
+            </div>
           </Modal>
         )}
       </AnimatePresence>

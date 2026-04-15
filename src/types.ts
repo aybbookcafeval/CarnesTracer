@@ -37,6 +37,8 @@ export interface Pieza {
   porciones?: Porcion[];
   createdAt: string;
   updatedAt: string;
+  auditado?: boolean;
+  comentarioAuditoria?: string;
 }
 
 export interface ConfigCorte {
@@ -83,6 +85,15 @@ export enum Sede {
   COCINA = "Cocina",
   PASTELERIA = "Pastelería",
   BARRA = "Barra",
+}
+
+export interface Produccion {
+  id: string;
+  nombrePreparado: string;
+  cantidad: number;
+  unidad: 'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes';
+  fecha: string;
+  encargado: string;
 }
 
 export interface ProductoTransferencia {

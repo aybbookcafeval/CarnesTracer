@@ -114,19 +114,18 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     const ai = new GoogleGenAI({ apiKey });
     const base64Data = imageBase64.split(",")[1] || imageBase64;
 
-    const prompt = `Analiza esta imagen de productos de almacén de un restaurante. 
-              Identifica los productos y sus cantidades.
+    const prompt = `Analiza esta imagen de una lista de producción de alimentos.
+              Identifica los productos preparados y sus cantidades.
               
               Reglas estrictas:
               1. Devuelve una lista de objetos JSON.
-              2. Formato: {"nombre": "PRODUCTO", "cantidad": "valor"}.
-              3. La letra 'g' para gramos debe ir siempre en minúscula (ej: 500g).
-              4. Ejemplo de salida: {"nombre": "REDUC. BALSAMICO", "cantidad": "20g"}.
-              5. Si no estás seguro de un producto, intenta describirlo brevemente.
-              6. Solo devuelve el JSON, sin bloques de código markdown ni texto adicional.`;
+              2. Formato: {"nombre": "PREPARADO", "cantidad": "valor", "unidad": "unidad"}.
+              3. Unidades permitidas: kg, g, unidades, lts, potes, paquetes.
+              4. Ejemplo de salida: [{"nombre": "Salsa Boloñesa", "cantidad": 2, "unidad": "kg"}].
+              5. Solo devuelve el JSON, sin bloques de código markdown ni texto adicional.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-2.0-flash",
       contents: [
         {
           role: "user",
@@ -151,9 +150,9 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
     
     if (Array.isArray(data)) {
       return data.map((item: any) => ({
-        nombre: item.nombre || "Producto desconocido",
+        nombre: item.nombre || "Preparado desconocido",
         cantidad: parseFloat(item.cantidad) || 1,
-        unidad: item.cantidad?.toString().replace(/[\d.]/g, '') || "unid"
+        unidad: item.unidad || "unidades"
       }));
     }
     return [];

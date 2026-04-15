@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario } from '../types';
+import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion } from '../types';
 
 const getClient = () => {
   const client = getSupabase();
@@ -68,7 +68,9 @@ export const supabaseService = {
       rendimiento: Number(p.rendimiento),
       porciones: p.porciones,
       createdAt: p.created_at,
-      updatedAt: p.updated_at
+      updatedAt: p.updated_at,
+      auditado: p.auditado,
+      comentarioAuditoria: p.comentario_auditoria
     }));
   },
 
@@ -108,9 +110,43 @@ export const supabaseService = {
         merma: pieza.merma,
         rendimiento: pieza.rendimiento,
         porciones: pieza.porciones,
+        auditado: pieza.auditado,
+        comentario_auditoria: pieza.comentarioAuditoria,
         updated_at: new Date().toISOString()
       })
       .eq('id', pieza.id);
+    if (error) throw error;
+  },
+
+  async fetchProduccion(): Promise<Produccion[]> {
+    const { data, error } = await getClient()
+      .from('produccion')
+      .select('*')
+      .order('fecha', { ascending: false });
+    
+    if (error) throw error;
+    
+    return (data || []).map(p => ({
+      id: p.id,
+      nombrePreparado: p.nombre_preparado,
+      cantidad: Number(p.cantidad),
+      unidad: p.unidad,
+      fecha: p.fecha,
+      encargado: p.encargado
+    }));
+  },
+
+  async createProduccion(produccion: Produccion) {
+    const { error } = await getClient()
+      .from('produccion')
+      .insert({
+        id: produccion.id,
+        nombre_preparado: produccion.nombrePreparado,
+        cantidad: produccion.cantidad,
+        unidad: produccion.unidad,
+        fecha: produccion.fecha,
+        encargado: produccion.encargado
+      });
     if (error) throw error;
   },
 
