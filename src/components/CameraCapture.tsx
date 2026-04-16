@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback } from "react";
 import { Camera, RefreshCw, Check, Upload } from "lucide-react";
 import { cn } from "../lib/utils";
+import { toast } from "sonner";
 
 interface CameraCaptureProps {
   onCapture: (image: string) => void;
@@ -41,7 +42,9 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
       setIsStreaming(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
-      setError("No se pudo acceder a la cámara. Intente subir un archivo.");
+      const msg = "No se pudo acceder a la cámara. Intente subir un archivo.";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
@@ -70,6 +73,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
               const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
               setCapturedImage(dataUrl);
               onCapture(dataUrl);
+              toast.success("Imagen cargada correctamente.");
             }
           }
         };
@@ -94,6 +98,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
         const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
         setCapturedImage(dataUrl);
         onCapture(dataUrl);
+        toast.success("Foto capturada.");
         
         // Stop stream
         streamRef.current?.getTracks().forEach(track => track.stop());

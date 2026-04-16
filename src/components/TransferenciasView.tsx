@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { Sede, Transferencia, ProductoTransferencia, Usuario } from "../types";
 import { supabaseService } from "../services/supabaseService";
-import { extractProductsFromImage } from "../services/geminiService";
+import { extractProductsFromImage } from "../services/aiService";
 import { CameraCapture } from "./CameraCapture";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { toast } from "sonner";
 
 export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
@@ -51,12 +52,18 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const handleCapture = async (imageSrc: string) => {
     setFoto(imageSrc);
     setIsExtracting(true);
+    toast.info("Analizando imagen...");
     try {
       const extracted = await extractProductsFromImage(imageSrc);
-      setProductos(extracted);
+      if (extracted.length > 0) {
+        setProductos(extracted);
+        toast.success(`${extracted.length} productos detectados correctamente.`);
+      } else {
+        toast.warning("No se detectaron productos. Intente con una foto más clara.");
+      }
     } catch (error) {
       console.error("Error extracting products:", error);
-      alert("Error al extraer productos de la imagen.");
+      toast.error("Error al extraer productos de la imagen.");
     } finally {
       setIsExtracting(false);
     }
@@ -78,15 +85,16 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   const handleSave = async () => {
     if (productos.length === 0) {
-      alert("Agregue al menos un producto.");
+      toast.error("Agregue al menos un producto.");
       return;
     }
     if (productos.some(p => !p.nombre.trim())) {
-      alert("Todos los productos deben tener un nombre.");
+      toast.error("Todos los productos deben tener un nombre.");
       return;
     }
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Guardando transferencia...");
     try {
       let fotoUrl = undefined;
       if (foto) {
@@ -111,10 +119,10 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setFoto(null);
       setProductos([]);
       setIsCapturing(false);
-      alert("Transferencia guardada exitosamente.");
+      toast.success("Transferencia guardada exitosamente.", { id: toastId });
     } catch (error) {
       console.error("Error saving transferencia:", error);
-      alert("Error al guardar la transferencia.");
+      toast.error("Error al guardar la transferencia.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -134,7 +142,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       }
     } else {
       navigator.clipboard.writeText(text);
-      alert("Texto copiado al portapapeles (Web Share API no soportada).");
+      toast.success("Texto copiado al portapapeles.");
     }
   };
 

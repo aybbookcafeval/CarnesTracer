@@ -2,10 +2,11 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2, ChefHat, Camera as CameraIcon, Search, Filter, Calendar } from "lucide-react";
 import { Produccion, Usuario } from "../types";
 import { supabaseService } from "../services/supabaseService";
-import { extractProductsFromImage } from "../services/geminiService";
+import { extractProductsFromImage } from "../services/aiService";
 import { CameraCapture } from "./CameraCapture";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+import { toast } from "sonner";
 
 interface Props {
   user: Usuario | null;
@@ -49,6 +50,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const handleCapture = async (imageSrc: string) => {
     setIsCapturing(false);
     setIsExtracting(true);
+    toast.info("Analizando lista de producción...");
     try {
       const extracted = await extractProductsFromImage(imageSrc);
       if (extracted.length > 0) {
@@ -57,12 +59,13 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           cantidad: p.cantidad,
           unidad: p.unidad
         })));
+        toast.success(`${extracted.length} preparados detectados.`);
       } else {
-        alert("No se detectaron productos en la imagen. Por favor, intente con una foto más clara o agréguelos manualmente.");
+        toast.warning("No se detectaron productos en la imagen. Intente con una foto más clara.");
       }
     } catch (error) {
       console.error("Error extracting:", error);
-      alert("Error al procesar la imagen.");
+      toast.error("Error al procesar la imagen.");
     } finally {
       setIsExtracting(false);
     }
@@ -87,6 +90,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     if (productos.length === 0 || !encargado) return;
 
     setIsSubmitting(true);
+    const toastId = toast.loading("Guardando producción...");
     try {
       const newProds = productos.map(p => ({
         id: `PROD-${Date.now()}-${Math.random()}`,
@@ -103,9 +107,10 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       
       setProduccion([...newProds, ...produccion]);
       setProductos([]);
+      toast.success("Producción registrada exitosamente.", { id: toastId });
     } catch (error) {
       console.error("Error saving production:", error);
-      alert("Error al guardar la producción.");
+      toast.error("Error al guardar la producción.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
