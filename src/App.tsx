@@ -29,7 +29,6 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { toast } from "sonner";
 import { getSupabase } from "./lib/supabase";
 import { supabaseService } from "./services/supabaseService";
 import { 
@@ -51,7 +50,7 @@ import { cn } from "./lib/utils";
 import { CameraCapture } from "./components/CameraCapture";
 import { TransferenciasView } from "./components/TransferenciasView";
 import { ProduccionView } from "./components/ProduccionView";
-import { validateWeightWithAI } from "./services/aiService";
+import { validateWeightWithAI } from "./services/geminiService";
 
 // Mock User
 const CURRENT_USER: Usuario = {
@@ -163,10 +162,7 @@ export default function App() {
 
   const handleLogout = async () => {
     const supabase = getSupabase();
-    if (supabase) {
-      await supabase.auth.signOut();
-      toast.success("Sesión cerrada correctamente");
-    }
+    if (supabase) await supabase.auth.signOut();
   };
 
   const generateReport = () => {
@@ -175,7 +171,7 @@ export default function App() {
     // Create a temporary iframe for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      toast.error("Por favor permite las ventanas emergentes para generar el reporte.");
+      alert("Por favor permite las ventanas emergentes para generar el reporte.");
       setIsGeneratingReport(false);
       return;
     }
@@ -361,10 +357,8 @@ export default function App() {
       await supabaseService.createPieza(newPiece);
       setPiezas([newPiece, ...piezas]);
       setIsAddingPiece(false);
-      toast.success(`Pieza ${newPiece.tipo} creada correctamente`);
     } catch (error) {
       console.error("Error creating piece in Supabase:", error);
-      toast.error("Error al crear la pieza en la base de datos");
     }
   };
 
@@ -379,10 +373,9 @@ export default function App() {
       setPiezas(piezas.map(p => p.id === auditModal.piece!.id ? { ...p, auditado: true, comentarioAuditoria: auditComment } : p));
       setAuditModal({ open: false, piece: null });
       setAuditComment("");
-      toast.success("Pieza auditada correctamente");
     } catch (error) {
       console.error("Error auditing piece:", error);
-      toast.error("Error al auditar la pieza.");
+      alert("Error al auditar la pieza.");
     }
   };
 
@@ -407,10 +400,7 @@ export default function App() {
       iaReason = aiResult.reason;
 
       if (!isValid) {
-        toast.warning(`AVISO DE DISCREPANCIA IA: ${iaReason}`, {
-          description: "El sistema ha detectado una posible diferencia, pero se permitirá el registro manual como solicitó.",
-          duration: 6000
-        });
+        alert(`AVISO DE DISCREPANCIA IA:\n${iaReason}\n\nEl sistema ha detectado una posible diferencia, pero se permitirá el registro manual como solicitó.`);
       }
     } catch (e) {
       console.error("AI Validation failed", e);
@@ -461,10 +451,8 @@ export default function App() {
       setRegistros([newRegistro, ...registros]);
       setPiezas(piezas.map(p => p.id === pieceId ? updatedPiece : p));
       setRegistrationModal({ open: false, piece: null });
-      toast.success(`Registro de ${eventType} completado`);
     } catch (error) {
       console.error("Error registering weight in Supabase:", error);
-      toast.error("Error al guardar el registro de peso");
     }
   };
 
@@ -1229,7 +1217,7 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
         });
       } else {
         await navigator.clipboard.writeText(`${title}\n\n${text}`);
-        toast.success("Datos copiados al portapapeles");
+        alert("Datos copiados al portapapeles");
       }
     } catch (error) {
       console.error("Error sharing:", error);
@@ -1269,15 +1257,12 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
           });
           
           if (funcError) {
-            console.warn('Edge Function get-storage-usage no disponible:', funcError);
-            setLoading(false);
-            return;
+            // Si falla el SDK, intentamos un fetch manual como fallback o lanzamos el error detallado
+            console.error('Error en Edge Function:', funcError);
+            throw new Error(funcError.message || 'Error al obtener uso de almacenamiento');
           }
           
-          if (!data) {
-            setLoading(false);
-            return;
-          }
+          if (!data) throw new Error('No se recibieron datos de la función');
 
           setUsage({ 
             usedGB: parseFloat(data.usedGB || 0), 
@@ -1285,8 +1270,17 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
             bucketName: data.bucketName || 'evidencias'
           });
         } catch (err: any) {
-          console.warn('Error al obtener uso de almacenamiento:', err);
-          setError(null);
+          console.error('Error detallado:', err);
+          
+          // Mensaje más descriptivo para el usuario
+          let friendlyMessage = 'No se pudo cargar el uso de almacenamiento';
+          if (err.message?.includes('Failed to send a request')) {
+            friendlyMessage = 'Error de conexión con la Edge Function. Verifique la configuración de CORS y JWT en el Dashboard de Supabase.';
+          } else if (err.message) {
+            friendlyMessage = err.message;
+          }
+          
+          setError(friendlyMessage);
         } finally {
           setLoading(false);
         }
@@ -1691,7 +1685,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     const pesoNum = Number(peso);
 
     if (pesoNum <= 0) {
-      toast.error("Error: El peso debe ser mayor a 0.");
+      alert("Error: El peso debe ser mayor a 0.");
       return;
     }
 
@@ -1720,10 +1714,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     }
 
     if (warningMsg) {
-      toast.warning("Aviso de Validación", {
-        description: `${warningMsg} Se registrará de todas formas.`,
-        duration: 5000
-      });
+      alert(`${warningMsg}\n\nSe registrará de todas formas.`);
     }
 
     setIsSubmitting(true);
@@ -1889,10 +1880,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
       const updated = await supabaseService.fetchConfigCortes();
       setConfigCortes(updated);
       setNewCorte({ nombre: "", mermaDescongeladoMax: 8, mermaTotalMax: 22 });
-      toast.success("Configuración de corte añadida");
     } catch (error) {
       console.error("Error adding config corte:", error);
-      toast.error("Error al añadir configuración");
     } finally {
       setIsSaving(false);
     }
@@ -1902,10 +1891,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
     try {
       await supabaseService.deleteConfigCorte(id);
       setConfigCortes(configCortes.filter(c => c.id !== id));
-      toast.success("Configuración eliminada");
     } catch (error) {
       console.error("Error deleting config corte:", error);
-      toast.error("Error al eliminar configuración");
     }
   };
 
@@ -1930,11 +1917,9 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
     try {
       await supabaseService.saveConfigCorte(editValues);
       setEditValues(null);
-      toast.success("Configuración actualizada");
     } catch (error) {
       console.error("Error updating config corte:", error);
       setConfigCortes(previousCortes);
-      toast.error("Error al actualizar configuración");
     }
   };
 

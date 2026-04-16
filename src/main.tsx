@@ -4,8 +4,6 @@ import App from './App.tsx';
 import './index.css';
 import { AlertTriangle } from 'lucide-react';
 
-import { Toaster } from 'sonner';
-
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -50,7 +48,6 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
-      <Toaster position="top-center" expand={true} richColors />
     </ErrorBoundary>
   </StrictMode>,
 );

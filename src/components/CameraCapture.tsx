@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback } from "react";
 import { Camera, RefreshCw, Check, Upload } from "lucide-react";
 import { cn } from "../lib/utils";
-import { toast } from "sonner";
 
 interface CameraCaptureProps {
   onCapture: (image: string) => void;
@@ -42,9 +41,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
       setIsStreaming(true);
     } catch (err) {
       console.error("Error accessing camera:", err);
-      const msg = "No se pudo acceder a la cámara. Intente subir un archivo.";
-      setError(msg);
-      toast.error(msg);
+      setError("No se pudo acceder a la cámara. Intente subir un archivo.");
     }
   };
 
@@ -65,15 +62,14 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
           if (canvasRef.current) {
             const context = canvasRef.current.getContext("2d");
             if (context) {
-              const maxWidth = 1280;
+              const maxWidth = 640;
               const scale = Math.min(1, maxWidth / img.width);
               canvasRef.current.width = img.width * scale;
               canvasRef.current.height = img.height * scale;
               context.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
-              const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
+              const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.6);
               setCapturedImage(dataUrl);
               onCapture(dataUrl);
-              toast.success("Imagen cargada correctamente.");
             }
           }
         };
@@ -87,18 +83,17 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
       if (context) {
-        // Downscale for storage (max 1280px width)
-        const maxWidth = 1280;
+        // Downscale for storage (max 640px width)
+        const maxWidth = 640;
         const scale = Math.min(1, maxWidth / videoRef.current.videoWidth);
         canvasRef.current.width = videoRef.current.videoWidth * scale;
         canvasRef.current.height = videoRef.current.videoHeight * scale;
         
         context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        // Use higher quality JPEG for better OCR
-        const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.85);
+        // Use lower quality JPEG to save space
+        const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.6);
         setCapturedImage(dataUrl);
         onCapture(dataUrl);
-        toast.success("Foto capturada.");
         
         // Stop stream
         streamRef.current?.getTracks().forEach(track => track.stop());
